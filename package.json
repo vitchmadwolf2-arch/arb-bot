@@ -1,0 +1,15 @@
+{
+  "name": "arb-bot",
+  "version": "2.4.0",
+  "description": "Bot d'arbitrage crypto simple et sécurisé",
+  "main": "bot.js",
+  "scripts": {
+    "start"    : "node bot.js",
+    "dry"      : "DRY_RUN=true node bot.js",
+    "pm2-start": "pm2 start bot.js --name arb-bot --watch"
+  },
+  "dependencies": {
+    "ccxt"  : "^4.2.0",
+    "dotenv": "^16.0.0"
+  }
+}

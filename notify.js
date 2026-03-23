@@ -1,5 +1,4 @@
 
-cat > /home/claude/arb-bot/notify_linux.js << 'EOF'
 // notify.js — Compatible Linux/Render (sans powershell)
 const https = require('https');
 require('dotenv').config();
@@ -23,6 +22,3 @@ const sounds = {
 };
 
 module.exports = { sendTelegram, sounds };
-EOF
-cp /home/claude/arb-bot/notify_linux.js /mnt/user-data/outputs/arb-bot/notify.js
-echo "OK

@@ -1,3 +1,5 @@
+const http = require('http');
+http.createServer((req,res)=>res.end('Bot VP actif')).listen(process.env.PORT||3000);
 // ============================================================
 //  bot_vp.js — Volume Profile Institutionnel
 //  POC + VAH + VAL + Supports/Résistances

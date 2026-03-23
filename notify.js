@@ -41,13 +41,7 @@ function sendTelegram(message) {
 }
 
 // ── Son Windows ──────────────────────────────────────────
-function playSound(type) {
-  try {
-    if (type === 'buy')    execSync('powershell -c "[console]::beep(800,200)"', { timeout: 2000 });
-    if (type === 'sell')   execSync('powershell -c "[console]::beep(400,400)"', { timeout: 2000 });
-    if (type === 'profit') execSync('powershell -c "[console]::beep(1000,100);Start-Sleep -m 100;[console]::beep(1200,100);Start-Sleep -m 100;[console]::beep(1400,300)"', { timeout: 3000 });
-  } catch(e) {}
-}
+// notifications Windows désactivées sur Linux
 
 // ── Notifications ────────────────────────────────────────
 const sounds = {

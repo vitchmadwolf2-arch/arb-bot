@@ -1,0 +1,18 @@
+from flask import Flask
+import ccxt
+
+app = Flask(__name__)
+
+exchange = ccxt.binance()
+
+@app.route("/")
+def home():
+    ticker = exchange.fetch_ticker("BTC/USDT")
+    price = ticker['last']
+
+    return f"""
+    <h1>📊 DASHBOARD LIVE</h1>
+    <p>BTC Price: {price}</p>
+    """
+
+app.run(host="0.0.0.0", port=5000)

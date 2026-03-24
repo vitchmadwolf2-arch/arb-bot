@@ -2,70 +2,98 @@ import ccxt
 import pandas as pd
 import numpy as np
 
+# ⚙️ CONFIG
+symbol = 'BTC/USDT'
+timeframe = '5m'
+limit = 1000
+
 exchange = ccxt.binance()
 
-# 📊 Charger les données historiques
+# 📊 DATA
 def get_data():
-    ohlcv = exchange.fetch_ohlcv('BTC/USDT', timeframe='5m', limit=1000)
+    ohlcv = exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=limit)
     df = pd.DataFrame(ohlcv, columns=['time','open','high','low','close','volume'])
     return df
 
 # 📈 EMA
-def ema(series, period=200):
+def ema(series, period):
     return series.ewm(span=period).mean()
 
-# 📊 Volume Profile simplifié
-def volume_profile(df, bins=30):
-    price = df['close']
-    volume = df['volume']
+# 🧠 SIGNALS
+def detect_sweep(df):
+    if df['low'].iloc[-1] < df['low'].iloc[-2]:
+        return "buy"
+    if df['high'].iloc[-1] > df['high'].iloc[-2]:
+        return "sell"
+    return None
 
-    hist, edges = np.histogram(price, bins=bins, weights=volume)
+def break_of_structure(df):
+    if df['close'].iloc[-1] > df['high'].iloc[-3]:
+        return "buy"
+    if df['close'].iloc[-1] < df['low'].iloc[-3]:
+        return "sell"
+    return None
 
-    poc_index = np.argmax(hist)
-    poc = (edges[poc_index] + edges[poc_index+1]) / 2
-
-    vah = np.percentile(price, 70)
-    val = np.percentile(price, 30)
-
-    return poc, vah, val
-
-# 💰 Backtest
-def run_backtest():
+# 🔁 BACKTEST
+def backtest():
     df = get_data()
 
-    df['ema200'] = ema(df['close'])
+    df['ema200'] = ema(df['close'], 200)
 
-    balance = 1000  # capital initial
-    position = 0
+    balance = 1000
+    position = None
     entry_price = 0
+
+    wins = 0
+    losses = 0
 
     for i in range(200, len(df)):
 
-        subset = df.iloc[:i]
-        price = df['close'].iloc[i]
+        current = df.iloc[i]
 
-        poc, vah, val = volume_profile(subset)
-        ema200 = subset['ema200'].iloc[-1]
+        sweep = detect_sweep(df.iloc[:i])
+        bos = break_of_structure(df.iloc[:i])
 
-        # 🟢 BUY
-        if price <= val and price > ema200 and position == 0:
-            position = balance / price
-            entry_price = price
-            balance = 0
-            print(f"BUY at {price}")
+        price = current['close']
+        ema200 = current['ema200']
 
-        # 🔴 SELL
-        elif position > 0:
+        # 📈 ENTRY BUY
+        if position is None:
+            if sweep == "buy" and bos == "buy" and price > ema200:
+                position = "buy"
+                entry_price = price
 
-            take_profit = entry_price * 1.04
-            stop_loss = entry_price * 0.98
+            elif sweep == "sell" and bos == "sell" and price < ema200:
+                position = "sell"
+                entry_price = price
 
-            if price >= take_profit or price <= stop_loss or price >= vah:
-                balance = position * price
-                position = 0
+        # 📉 EXIT
+        elif position == "buy":
+            if price >= entry_price * 1.02:
+                balance *= 1.02
+                wins += 1
+                position = None
 
-                print(f"SELL at {price} | Balance: {balance}")
+            elif price <= entry_price * 0.99:
+                balance *= 0.99
+                losses += 1
+                position = None
 
-    print(f"Final balance: {balance}")
+        elif position == "sell":
+            if price <= entry_price * 0.98:
+                balance *= 1.02
+                wins += 1
+                position = None
 
-run_backtest()
+            elif price >= entry_price * 1.01:
+                balance *= 0.99
+                losses += 1
+                position = None
+
+    print("\n📊 RESULTATS BACKTEST")
+    print(f"Balance finale: {balance}")
+    print(f"Wins: {wins}")
+    print(f"Losses: {losses}")
+
+if __name__ == "__main__":
+    backtest()

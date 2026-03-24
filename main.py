@@ -8,8 +8,8 @@ import numpy as np
 
 app = Flask(__name__)
 
-API_KEY = os.environ.get("API_KEY")
-SECRET_KEY = os.environ.get("SECRET_KEY")
+API_KEY = os.environ.get("aNDnQaPjdbyaB2TNsgWZiGH6yGMwXZfmNaZjLVoBmN1Gm87FGY4BwHLsFgstE4GY")
+SECRET_KEY = os.environ.get("NjlozkWyvwXGsdkRiTrGSxOTtSw4CrJgjzjYme2PAGhPEYju6aFbUr6AaZ8xLwsT")
 
 exchange = ccxt.binance({
     'apiKey': API_KEY,

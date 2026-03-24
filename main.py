@@ -8,18 +8,25 @@ import numpy as np
 
 app = Flask(__name__)
 
-API_KEY = os.environ.get("aNDnQaPjdbyaB2TNsgWZiGH6yGMwXZfmNaZjLVoBmN1Gm87FGY4BwHLsFgstE4GY")
-SECRET_KEY = os.environ.get("NjlozkWyvwXGsdkRiTrGSxOTtSw4CrJgjzjYme2PAGhPEYju6aFbUr6AaZ8xLwsT")
+# 🔐 API depuis Render
+API_KEY = os.environ.get("API_KEY")
+SECRET_KEY = os.environ.get("SECRET_KEY")
 
+# 🚀 FUTURES ACTIVÉ
 exchange = ccxt.binance({
     'apiKey': API_KEY,
     'secret': SECRET_KEY,
     'enableRateLimit': True,
+    'options': {
+        'defaultType': 'future',
+    }
 })
+
+symbol = 'BTC/USDT:USDT'
 
 # 📊 DATA
 def get_data():
-    ohlcv = exchange.fetch_ohlcv('BTC/USDT', timeframe='5m', limit=200)
+    ohlcv = exchange.fetch_ohlcv(symbol, timeframe='5m', limit=200)
     df = pd.DataFrame(ohlcv, columns=['time','open','high','low','close','volume'])
     return df
 
@@ -42,7 +49,7 @@ def volume_profile(df, bins=30):
 
     return poc, vah, val
 
-# 🐋 SWEEP
+# 🧠 SIGNALS
 def detect_sweep(df):
     if df['high'].iloc[-1] > df['high'].iloc[-2]:
         return "sweep_high"
@@ -50,7 +57,6 @@ def detect_sweep(df):
         return "sweep_low"
     return None
 
-# 📊 BOS
 def break_of_structure(df):
     if df['close'].iloc[-1] > df['high'].iloc[-3]:
         return "bullish"
@@ -58,26 +64,11 @@ def break_of_structure(df):
         return "bearish"
     return None
 
-# 📉 LIQUIDATION (approximation)
 def detect_liquidation(df):
     volume = df['volume']
-    if volume.iloc[-1] > volume.rolling(20).mean().iloc[-1] * 2:
-        return True
-    return False
+    return volume.iloc[-1] > volume.rolling(20).mean().iloc[-1] * 2
 
-# 📦 ORDER BOOK
-def get_orderbook():
-    ob = exchange.fetch_order_book('BTC/USDT', limit=20)
-    bids = ob['bids']
-    asks = ob['asks']
-    return bids, asks
-
-def analyze_orderbook(bids, asks):
-    max_bid = max(bids, key=lambda x: x[1])
-    max_ask = max(asks, key=lambda x: x[1])
-    return max_bid[0], max_ask[0]
-
-# 🧠 BOT
+# 🤖 BOT
 def run_bot():
     while True:
         try:
@@ -94,38 +85,21 @@ def run_bot():
             bos = break_of_structure(df)
             liquidation = detect_liquidation(df)
 
-            bids, asks = get_orderbook()
-            bid_liq, ask_liq = analyze_orderbook(bids, asks)
-
             print("\n--- ANALYSE ---")
             print(f"Price: {price}")
             print(f"EMA200: {ema200}")
-            print(f"VAL: {val} | VAH: {vah}")
-            print(f"OrderBook BUY: {bid_liq} | SELL: {ask_liq}")
 
             # 🟢 BUY
-            if (
-                sweep == "sweep_low"
-                and bos == "bullish"
-                and price > ema200
-                and price <= val
-                and liquidation
-            ):
-                print("🔥 SMART BUY SIGNAL")
+            if sweep == "sweep_low" and bos == "bullish" and price > ema200 and liquidation:
+                print("🔥 BUY FUTURES")
 
-                # exchange.create_market_buy_order('BTC/USDT', 0.001)
+                exchange.create_market_buy_order(symbol, 0.001)
 
             # 🔴 SELL
-            elif (
-                sweep == "sweep_high"
-                and bos == "bearish"
-                and price < ema200
-                and price >= vah
-                and liquidation
-            ):
-                print("🔥 SMART SELL SIGNAL")
+            elif sweep == "sweep_high" and bos == "bearish" and price < ema200 and liquidation:
+                print("🔥 SELL FUTURES")
 
-                # exchange.create_market_sell_order('BTC/USDT', 0.001)
+                exchange.create_market_sell_order(symbol, 0.001)
 
             time.sleep(30)
 
@@ -133,22 +107,12 @@ def run_bot():
             print("Erreur:", e)
             time.sleep(10)
 
+# 🌐 FLASK
 @app.route("/")
 def home():
-    return "Smart Money Bot Actif 💼🐋"
+    return "Smart Money Bot Futures Actif 🚀"
 
+# 🚀 LANCEMENT
 if __name__ == "__main__":
     threading.Thread(target=run_bot).start()
-    app.run(host="0.0.0.0", port=10000)
-    from flask import Flask
-import os
-
-app = Flask(__name__)
-
-@app.route("/")
-def home():
-    return "Smart Money Bot Actif 🚀"
-
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))
-    app.run(host="0.0.0.0", port=port)    
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))

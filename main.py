@@ -8,11 +8,11 @@ import numpy as np
 
 app = Flask(__name__)
 
-# 🔐 API depuis Render
+# 🔐 API (Render environment variables)
 API_KEY = os.environ.get("aNDnQaPjdbyaB2TNsgWZiGH6yGMwXZfmNaZjLVoBmN1Gm87FGY4BwHLsFgstE4GY")
 SECRET_KEY = os.environ.get("NjlozkWyvwXGsdkRiTrGSxOTtSw4CrJgjzjYme2PAGhPEYju6aFbUr6AaZ8xLwsT")
 
-# 🚀 FUTURES ACTIVÉ
+# 🚀 BINANCE FUTURES
 exchange = ccxt.binance({
     'apiKey': API_KEY,
     'secret': SECRET_KEY,
@@ -23,6 +23,11 @@ exchange = ccxt.binance({
 })
 
 symbol = 'BTC/USDT:USDT'
+
+# ⚙️ PARAMÈTRES RISQUE
+STOP_LOSS_PERCENT = 0.01
+TAKE_PROFIT_PERCENT = 0.02
+TRADE_SIZE = 0.001
 
 # 📊 DATA
 def get_data():
@@ -68,6 +73,36 @@ def detect_liquidation(df):
     volume = df['volume']
     return volume.iloc[-1] > volume.rolling(20).mean().iloc[-1] * 2
 
+# 🛡️ STOP LOSS / TAKE PROFIT
+def place_sl_tp(side, entry_price):
+    if side == "buy":
+        sl = entry_price * (1 - STOP_LOSS_PERCENT)
+        tp = entry_price * (1 + TAKE_PROFIT_PERCENT)
+
+        exchange.create_order(symbol, 'STOP_MARKET', 'sell', TRADE_SIZE, None, {
+            'stopPrice': sl,
+            'reduceOnly': True
+        })
+
+        exchange.create_order(symbol, 'TAKE_PROFIT_MARKET', 'sell', TRADE_SIZE, None, {
+            'stopPrice': tp,
+            'reduceOnly': True
+        })
+
+    elif side == "sell":
+        sl = entry_price * (1 + STOP_LOSS_PERCENT)
+        tp = entry_price * (1 - TAKE_PROFIT_PERCENT)
+
+        exchange.create_order(symbol, 'STOP_MARKET', 'buy', TRADE_SIZE, None, {
+            'stopPrice': sl,
+            'reduceOnly': True
+        })
+
+        exchange.create_order(symbol, 'TAKE_PROFIT_MARKET', 'buy', TRADE_SIZE, None, {
+            'stopPrice': tp,
+            'reduceOnly': True
+        })
+
 # 🤖 BOT
 def run_bot():
     while True:
@@ -93,13 +128,15 @@ def run_bot():
             if sweep == "sweep_low" and bos == "bullish" and price > ema200 and liquidation:
                 print("🔥 BUY FUTURES")
 
-                exchange.create_market_buy_order(symbol, 0.001)
+                exchange.create_market_buy_order(symbol, TRADE_SIZE)
+                place_sl_tp("buy", price)
 
             # 🔴 SELL
             elif sweep == "sweep_high" and bos == "bearish" and price < ema200 and liquidation:
                 print("🔥 SELL FUTURES")
 
-                exchange.create_market_sell_order(symbol, 0.001)
+                exchange.create_market_sell_order(symbol, TRADE_SIZE)
+                place_sl_tp("sell", price)
 
             time.sleep(30)
 
@@ -110,7 +147,7 @@ def run_bot():
 # 🌐 FLASK
 @app.route("/")
 def home():
-    return "Smart Money Bot Futures Actif 🚀"
+    return "Smart Money Futures Bot Actif 🚀"
 
 # 🚀 LANCEMENT
 if __name__ == "__main__":

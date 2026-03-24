@@ -1,18 +1,15 @@
-from flask import Flask
-import threading
-import time
+import numpy as np
 
-app = Flask(__name__)
+def volume_profile(df, bins=20):
+    price = df['close']
+    volume = df['volume']
 
-def run_bot():
-    while True:
-        print("Bot running...")
-        time.sleep(10)
+    hist, edges = np.histogram(price, bins=bins, weights=volume)
 
-@app.route("/")
-def home():
-    return "Bot is running 🚀"
+    poc_index = np.argmax(hist)
+    poc = (edges[poc_index] + edges[poc_index+1]) / 2
 
-if __name__ == "__main__":
-    threading.Thread(target=run_bot).start()
-    app.run(host="0.0.0.0", port=10000)
+    vah = np.percentile(price, 70)
+    val = np.percentile(price, 30)
+
+    return poc, vah, val
